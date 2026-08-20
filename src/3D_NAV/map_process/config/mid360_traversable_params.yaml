@@ -34,3 +34,10 @@ downsampling_threshold: 100000
 restore_full_resolution: true
 restoration_search_radius: 0.10
 restoration_height_tolerance: 0.035
+
+# Remove ceiling/underside returns that form a close duplicate below a walking
+# surface. Floors separated by more than 0.35 m remain independent.
+collapse_vertical_layers: true
+vertical_layer_xy_resolution: 0.08
+vertical_layer_max_separation: 0.35
+vertical_layer_surface_tolerance: 0.04

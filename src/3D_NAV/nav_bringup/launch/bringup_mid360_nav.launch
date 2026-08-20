@@ -36,7 +36,7 @@
   <arg name="map_to_camera_init_qw" default="0.995643497" />
 
   <!-- Planning parameters. These are exposed here because planning_3d.launch hard-codes safe_margin=1.0. -->
-  <arg name="safe_margin" default="0.10" />
+  <arg name="safe_margin" default="0.20" />
   <arg name="voxel_leaf" default="0.10" />
   <arg name="robot_height" default="1.0" />
   <arg name="enable_headroom_check" default="false" />
@@ -48,7 +48,7 @@
   <arg name="max_slope_deg" default="60" />
   <arg name="use_clearance_penalty" default="true" />
   <arg name="clearance_penalty_weight" default="50000.0" />
-  <arg name="clearance_penalty_scale" default="0.10" />
+  <arg name="clearance_penalty_scale" default="0.20" />
 
   <!-- Local controller / Go2 args -->
   <arg name="start_in_auto" default="false" />

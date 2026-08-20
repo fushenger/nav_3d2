@@ -16,6 +16,14 @@
   <arg name="path_following_speed" default="0.35" />
   <arg name="casadi_lib_path" default="$(optenv CASADI_LIB_PATH /opt/casadi/lib)" />
   <arg name="step_size" default="0.40" />
+  <!-- Rotate source maps in memory so level_normal becomes the RViz +Z direction. -->
+  <arg name="enable_map_leveling" default="false" />
+  <arg name="level_normal_x" default="0.0" />
+  <arg name="level_normal_y" default="0.0" />
+  <arg name="level_normal_z" default="1.0" />
+  <arg name="level_pivot_x" default="0.0" />
+  <arg name="level_pivot_y" default="0.0" />
+  <arg name="level_pivot_z" default="0.0" />
 
   <include file="$(find map_publisher)/launch/map_publisher.launch">
     <arg name="map_path" value="$(arg static_map_path)" />
@@ -23,6 +31,13 @@
     <arg name="voxel_size" value="0.10" />
     <arg name="publish_rate" value="0" />
     <arg name="latch" value="true" />
+    <arg name="enable_map_leveling" value="$(arg enable_map_leveling)" />
+    <arg name="level_normal_x" value="$(arg level_normal_x)" />
+    <arg name="level_normal_y" value="$(arg level_normal_y)" />
+    <arg name="level_normal_z" value="$(arg level_normal_z)" />
+    <arg name="level_pivot_x" value="$(arg level_pivot_x)" />
+    <arg name="level_pivot_y" value="$(arg level_pivot_y)" />
+    <arg name="level_pivot_z" value="$(arg level_pivot_z)" />
   </include>
 
   <node pkg="nav_bringup" type="offline_base_sim.py" name="offline_base_sim" output="screen">
@@ -33,6 +48,14 @@
     <param name="initial_z" value="$(arg initial_z)" />
     <param name="initial_yaw" value="$(arg initial_yaw)" />
     <param name="initialpose_uses_z" value="false" />
+    <param name="enable_map_leveling" value="$(arg enable_map_leveling)" />
+    <param name="initial_pose_is_source_frame" value="true" />
+    <param name="level_normal_x" value="$(arg level_normal_x)" />
+    <param name="level_normal_y" value="$(arg level_normal_y)" />
+    <param name="level_normal_z" value="$(arg level_normal_z)" />
+    <param name="level_pivot_x" value="$(arg level_pivot_x)" />
+    <param name="level_pivot_y" value="$(arg level_pivot_y)" />
+    <param name="level_pivot_z" value="$(arg level_pivot_z)" />
     <param name="motion_mode" value="$(arg motion_mode)" />
     <param name="path_topic" value="/path_smooth" />
     <param name="path_following_speed" value="$(arg path_following_speed)" />
@@ -51,16 +74,23 @@
     <param name="edt_z_thickness" value="3" />
     <param name="robot_height" value="1.0" />
     <param name="enable_headroom_check" value="false" />
-    <param name="safe_margin" value="0.10" />
+    <param name="safe_margin" value="0.20" />
     <param name="use_soft_penalty" value="false" />
     <param name="use_clearance_penalty" value="true" />
     <param name="clearance_penalty_weight" value="50000.0" />
-    <param name="clearance_penalty_scale" value="0.10" />
+    <param name="clearance_penalty_scale" value="0.20" />
     <param name="step_size" value="$(arg step_size)" />
     <param name="max_nodes" value="12000" />
     <param name="k_neigh" value="50" />
     <param name="max_slope_deg" value="60" />
     <param name="voxel_leaf" value="0.10" />
+    <param name="enable_map_leveling" value="$(arg enable_map_leveling)" />
+    <param name="level_normal_x" value="$(arg level_normal_x)" />
+    <param name="level_normal_y" value="$(arg level_normal_y)" />
+    <param name="level_normal_z" value="$(arg level_normal_z)" />
+    <param name="level_pivot_x" value="$(arg level_pivot_x)" />
+    <param name="level_pivot_y" value="$(arg level_pivot_y)" />
+    <param name="level_pivot_z" value="$(arg level_pivot_z)" />
     <param name="auto_replan" value="true" />
     <param name="replan_frequency" value="1.0" />
     <param name="obstacle_block_radius" value="0.0" />

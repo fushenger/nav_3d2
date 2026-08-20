@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include <set>
+#include <map>
 #include <pcl/search/kdtree.h>
 #include <pcl/common/common.h>
 #include <pcl/features/normal_3d.h>
@@ -433,6 +434,9 @@ bool TraversableExtractor::performRegionGrowingWithSeeds(const pcl::PointCloud<p
         traversable_cloud_ = params_.restore_full_resolution
             ? restoreFullResolution(combined_cloud)
             : combined_cloud;
+        if (params_.collapse_vertical_layers) {
+            traversable_cloud_ = collapseVerticalLayers(traversable_cloud_);
+        }
         
         std::cout << "Combined " << regions_.size() << " regions into traversable areas with " 
                   << traversable_cloud_->size() << " points" << std::endl;
@@ -442,6 +446,59 @@ bool TraversableExtractor::performRegionGrowingWithSeeds(const pcl::PointCloud<p
     
     std::cerr << "No valid regions found" << std::endl;
     return false;
+}
+
+pcl::PointCloud<pcl::PointXYZI>::Ptr TraversableExtractor::collapseVerticalLayers(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) const {
+    if (!cloud || cloud->empty() || params_.vertical_layer_xy_resolution <= 0.0) {
+        return cloud;
+    }
+
+    using Cell = std::pair<int, int>;
+    std::map<Cell, std::vector<int>> cells;
+    for (size_t i = 0; i < cloud->size(); ++i) {
+        const auto& p = cloud->points[i];
+        cells[{static_cast<int>(std::floor(p.x / params_.vertical_layer_xy_resolution)),
+               static_cast<int>(std::floor(p.y / params_.vertical_layer_xy_resolution))}]
+            .push_back(static_cast<int>(i));
+    }
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr filtered(new pcl::PointCloud<pcl::PointXYZI>);
+    filtered->reserve(cloud->size());
+    size_t removed = 0;
+    for (auto& entry : cells) {
+        auto& indices = entry.second;
+        std::sort(indices.begin(), indices.end(), [&](int lhs, int rhs) {
+            return cloud->points[lhs].z < cloud->points[rhs].z;
+        });
+
+        size_t begin = 0;
+        while (begin < indices.size()) {
+            size_t end = begin + 1;
+            while (end < indices.size() &&
+                   cloud->points[indices[end]].z - cloud->points[indices[end - 1]].z <=
+                       params_.vertical_layer_max_separation) {
+                ++end;
+            }
+            const float top_z = cloud->points[indices[end - 1]].z;
+            for (size_t i = begin; i < end; ++i) {
+                if (top_z - cloud->points[indices[i]].z <=
+                    params_.vertical_layer_surface_tolerance) {
+                    filtered->points.push_back(cloud->points[indices[i]]);
+                } else {
+                    ++removed;
+                }
+            }
+            begin = end;
+        }
+    }
+
+    filtered->width = filtered->points.size();
+    filtered->height = 1;
+    filtered->is_dense = true;
+    std::cout << "Collapsed close vertical layers: removed " << removed
+              << " lower-slab points, kept " << filtered->size() << std::endl;
+    return filtered->empty() ? cloud : filtered;
 }
 
 pcl::PointCloud<pcl::PointXYZI>::Ptr TraversableExtractor::restoreFullResolution(

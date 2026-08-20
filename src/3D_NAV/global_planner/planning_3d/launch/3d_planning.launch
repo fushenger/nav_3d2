@@ -3,7 +3,7 @@
   <arg name="map_frame" default="map"/>
   <arg name="robot_frame" default="base_link"/>
   <arg name="voxel_leaf" default="0.10"/>
-  <arg name="safe_margin" default="0.10"/>
+  <arg name="safe_margin" default="0.20"/>
   <arg name="step_size" default="0.60"/>
   <arg name="max_nodes" default="12000"/>
   <arg name="k_neigh" default="50"/>
@@ -11,6 +11,13 @@
   <arg name="robot_height" default="1.0"/>
   <arg name="enable_headroom_check" default="false"/>
   <arg name="start_rviz" default="true"/>
+  <arg name="enable_map_leveling" default="false"/>
+  <arg name="level_normal_x" default="0.0"/>
+  <arg name="level_normal_y" default="0.0"/>
+  <arg name="level_normal_z" default="1.0"/>
+  <arg name="level_pivot_x" default="0.0"/>
+  <arg name="level_pivot_y" default="0.0"/>
+  <arg name="level_pivot_z" default="0.0"/>
 
   <!-- PRM-A* 三维路径规划器 -->
   <node pkg="planning_3d" type="planning_3d_PRM_node" name="planning_3d_PRM_node" output="screen">
@@ -33,7 +40,7 @@
     <!-- A* clearance惩罚参数（新方案，推荐启用） -->
     <param name="use_clearance_penalty" value="true"/>      <!-- 是否启用基于边clearance的激进惩罚 -->
     <param name="clearance_penalty_weight" value="50000.0"/>    <!-- 强化中心路径偏好 -->
-    <param name="clearance_penalty_scale" value="0.10"/>    <!-- 强化近边界代价，优先选择通道中心 -->
+    <param name="clearance_penalty_scale" value="0.20"/>    <!-- 同时惩罚近边界和持续沿边路径 -->
 
     <!-- PRM 采样参数 -->
     <param name="step_size"  value="$(arg step_size)"/>   <!-- 连边最大步长 -->
@@ -43,6 +50,15 @@
 
     <!-- 滤波 & 体素 -->
     <param name="voxel_leaf" value="$(arg voxel_leaf)"/>   <!-- pcl::VoxelGrid 尺寸 -->
+
+    <!-- Runtime leveling keeps the source PCD on disk unchanged. -->
+    <param name="enable_map_leveling" value="$(arg enable_map_leveling)"/>
+    <param name="level_normal_x" value="$(arg level_normal_x)"/>
+    <param name="level_normal_y" value="$(arg level_normal_y)"/>
+    <param name="level_normal_z" value="$(arg level_normal_z)"/>
+    <param name="level_pivot_x" value="$(arg level_pivot_x)"/>
+    <param name="level_pivot_y" value="$(arg level_pivot_y)"/>
+    <param name="level_pivot_z" value="$(arg level_pivot_z)"/>
 
     <!-- TF 坐标系 -->
     <param name="map_frame" value="$(arg map_frame)"/>

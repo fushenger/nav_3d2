@@ -1,6 +1,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <open3d/Open3D.h>
+#include <Eigen/Geometry>
 #include "open3d_conversions/open3d_conversions.h"
 
 class MapPublisher
@@ -15,6 +16,13 @@ public:
         nh_private_.param<std::string>("map_frame_id", map_frame_id_, "map");
         nh_private_.param<double>("publish_rate", publish_rate_, 1.0);
         nh_private_.param<bool>("latch", latch_, true);
+        nh_private_.param<bool>("enable_map_leveling", enable_map_leveling_, false);
+        nh_private_.param<double>("level_normal_x", level_normal_x_, 0.0);
+        nh_private_.param<double>("level_normal_y", level_normal_y_, 0.0);
+        nh_private_.param<double>("level_normal_z", level_normal_z_, 1.0);
+        nh_private_.param<double>("level_pivot_x", level_pivot_x_, 0.0);
+        nh_private_.param<double>("level_pivot_y", level_pivot_y_, 0.0);
+        nh_private_.param<double>("level_pivot_z", level_pivot_z_, 0.0);
 
         // 创建publisher (latch=true 保证后订阅的节点也能收到)
         pub_map_ = nh_.advertise<sensor_msgs::PointCloud2>("/map", 1, latch_);
@@ -25,6 +33,10 @@ public:
         ROS_INFO("  map_frame_id: %s", map_frame_id_.c_str());
         ROS_INFO("  publish_rate: %.2f Hz", publish_rate_);
         ROS_INFO("  latch: %s", latch_ ? "true" : "false");
+        if (enable_map_leveling_)
+        {
+            configureMapLeveling();
+        }
     }
 
     bool loadAndPublishMap()
@@ -66,6 +78,8 @@ public:
             pcd_map_downsampled_ = pcd_map_ori_;
             ROS_INFO("No downsampling applied (voxel_size <= 0)");
         }
+
+        applyMapLeveling();
 
         // 转换为ROS消息并发布
         publishMap();
@@ -112,6 +126,43 @@ public:
     }
 
 private:
+    void configureMapLeveling()
+    {
+        Eigen::Vector3d normal(level_normal_x_, level_normal_y_, level_normal_z_);
+        if (normal.norm() < 1e-6)
+        {
+            ROS_ERROR("Map leveling requested, but level_normal is zero. Publishing raw map.");
+            enable_map_leveling_ = false;
+            return;
+        }
+
+        normal.normalize();
+        const Eigen::Quaterniond rotation = Eigen::Quaterniond::FromTwoVectors(
+            normal, Eigen::Vector3d::UnitZ());
+        const Eigen::Vector3d pivot(level_pivot_x_, level_pivot_y_, level_pivot_z_);
+
+        level_transform_.setIdentity();
+        level_transform_.block<3, 3>(0, 0) = rotation.toRotationMatrix();
+        level_transform_.block<3, 1>(0, 3) = pivot - rotation.toRotationMatrix() * pivot;
+
+        ROS_INFO("Runtime map leveling enabled: normal=(%.6f, %.6f, %.6f), "
+                 "pivot=(%.3f, %.3f, %.3f), angle=%.2f deg",
+                 normal.x(), normal.y(), normal.z(), pivot.x(), pivot.y(), pivot.z(),
+                 Eigen::AngleAxisd(rotation).angle() * 180.0 / M_PI);
+    }
+
+    void applyMapLeveling()
+    {
+        if (!enable_map_leveling_)
+        {
+            return;
+        }
+
+        auto leveled_map = std::make_shared<open3d::geometry::PointCloud>(*pcd_map_downsampled_);
+        leveled_map->Transform(level_transform_);
+        pcd_map_downsampled_ = leveled_map;
+    }
+
     ros::NodeHandle nh_;
     ros::NodeHandle nh_private_;
 
@@ -125,6 +176,14 @@ private:
     std::string map_frame_id_;
     double publish_rate_;
     bool latch_;
+    bool enable_map_leveling_;
+    double level_normal_x_;
+    double level_normal_y_;
+    double level_normal_z_;
+    double level_pivot_x_;
+    double level_pivot_y_;
+    double level_pivot_z_;
+    Eigen::Matrix4d level_transform_ = Eigen::Matrix4d::Identity();
 };
 
 int main(int argc, char **argv)

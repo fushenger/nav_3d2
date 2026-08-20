@@ -16,6 +16,15 @@
     <!-- Latch mode: true = new subscribers receive the last published message -->
     <arg name="latch" default="true" />
 
+    <!-- Rotate the map in memory so its supplied ground normal becomes +Z. -->
+    <arg name="enable_map_leveling" default="false" />
+    <arg name="level_normal_x" default="0.0" />
+    <arg name="level_normal_y" default="0.0" />
+    <arg name="level_normal_z" default="1.0" />
+    <arg name="level_pivot_x" default="0.0" />
+    <arg name="level_pivot_y" default="0.0" />
+    <arg name="level_pivot_z" default="0.0" />
+
     <!-- Map Publisher Node -->
     <node pkg="map_publisher" type="map_publisher_node" name="map_publisher_node" output="screen">
         <param name="map_path" value="$(arg map_path)" />
@@ -23,6 +32,13 @@
         <param name="map_frame_id" value="$(arg map_frame_id)" />
         <param name="publish_rate" value="$(arg publish_rate)" />
         <param name="latch" value="$(arg latch)" />
+        <param name="enable_map_leveling" value="$(arg enable_map_leveling)" />
+        <param name="level_normal_x" value="$(arg level_normal_x)" />
+        <param name="level_normal_y" value="$(arg level_normal_y)" />
+        <param name="level_normal_z" value="$(arg level_normal_z)" />
+        <param name="level_pivot_x" value="$(arg level_pivot_x)" />
+        <param name="level_pivot_y" value="$(arg level_pivot_y)" />
+        <param name="level_pivot_z" value="$(arg level_pivot_z)" />
     </node>
 
 </launch>

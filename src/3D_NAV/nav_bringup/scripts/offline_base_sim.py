@@ -32,11 +32,28 @@ class OfflineBaseSim:
         self.follow_path_height = rospy.get_param("~follow_path_height", True)
         self.trace_spacing = rospy.get_param("~trace_spacing", 0.05)
         self.initialpose_uses_z = rospy.get_param("~initialpose_uses_z", False)
+        self.enable_map_leveling = rospy.get_param("~enable_map_leveling", False)
+        self.initial_pose_is_source_frame = rospy.get_param(
+            "~initial_pose_is_source_frame", True)
+        self.level_normal = (
+            rospy.get_param("~level_normal_x", 0.0),
+            rospy.get_param("~level_normal_y", 0.0),
+            rospy.get_param("~level_normal_z", 1.0),
+        )
+        self.level_pivot = (
+            rospy.get_param("~level_pivot_x", 0.0),
+            rospy.get_param("~level_pivot_y", 0.0),
+            rospy.get_param("~level_pivot_z", 0.0),
+        )
+        self.level_rotation = self.make_level_rotation()
 
         self.x = rospy.get_param("~initial_x", 0.0)
         self.y = rospy.get_param("~initial_y", 0.0)
         self.z = rospy.get_param("~initial_z", 0.0)
         self.yaw = rospy.get_param("~initial_yaw", 0.0)
+        if self.enable_map_leveling and self.initial_pose_is_source_frame:
+            self.x, self.y, self.z = self.level_point((self.x, self.y, self.z))
+            self.yaw = self.level_yaw(self.yaw)
         self.linear_velocity = 0.0
         self.angular_velocity = 0.0
         self.last_command_time = rospy.Time(0)
@@ -60,6 +77,54 @@ class OfflineBaseSim:
         rospy.loginfo(
             "Offline base simulator ready in %s mode. Set /initialpose in RViz, then send a "
             "3D Nav Goal. It never contacts robot hardware.", self.motion_mode)
+
+    def make_level_rotation(self):
+        if not self.enable_map_leveling:
+            return ((1.0, 0.0, 0.0),
+                    (0.0, 1.0, 0.0),
+                    (0.0, 0.0, 1.0))
+
+        nx, ny, nz = self.level_normal
+        length = math.sqrt(nx * nx + ny * ny + nz * nz)
+        if length < 1e-6:
+            raise rospy.ROSInitException(
+                "Map leveling requested, but level_normal is zero.")
+        nx, ny, nz = nx / length, ny / length, nz / length
+
+        # Quaternion rotating the source ground normal onto +Z.
+        qx, qy, qz, qw = ny, -nx, 0.0, 1.0 + nz
+        q_length = math.sqrt(qx * qx + qy * qy + qz * qz + qw * qw)
+        if q_length < 1e-6:
+            # The source normal points exactly down. Any horizontal half turn works.
+            qx, qy, qz, qw = 1.0, 0.0, 0.0, 0.0
+        else:
+            qx, qy, qz, qw = (qx / q_length, qy / q_length,
+                              qz / q_length, qw / q_length)
+
+        return (
+            (1.0 - 2.0 * (qy * qy + qz * qz),
+             2.0 * (qx * qy - qz * qw),
+             2.0 * (qx * qz + qy * qw)),
+            (2.0 * (qx * qy + qz * qw),
+             1.0 - 2.0 * (qx * qx + qz * qz),
+             2.0 * (qy * qz - qx * qw)),
+            (2.0 * (qx * qz - qy * qw),
+             2.0 * (qy * qz + qx * qw),
+             1.0 - 2.0 * (qx * qx + qy * qy)),
+        )
+
+    def level_vector(self, vector):
+        return tuple(sum(self.level_rotation[row][column] * vector[column]
+                         for column in range(3)) for row in range(3))
+
+    def level_point(self, point):
+        relative = tuple(point[index] - self.level_pivot[index] for index in range(3))
+        rotated = self.level_vector(relative)
+        return tuple(rotated[index] + self.level_pivot[index] for index in range(3))
+
+    def level_yaw(self, yaw):
+        direction = self.level_vector((math.cos(yaw), math.sin(yaw), 0.0))
+        return math.atan2(direction[1], direction[0])
 
     def command_callback(self, command):
         self.linear_velocity = clamp(command.linear.x,

@@ -64,6 +64,10 @@ int main(int argc, char** argv) {
     private_nh.param("restore_full_resolution", params.restore_full_resolution, true);
     private_nh.param("restoration_search_radius", params.restoration_search_radius, 0.04);
     private_nh.param("restoration_height_tolerance", params.restoration_height_tolerance, 0.03);
+    private_nh.param("collapse_vertical_layers", params.collapse_vertical_layers, true);
+    private_nh.param("vertical_layer_xy_resolution", params.vertical_layer_xy_resolution, 0.08);
+    private_nh.param("vertical_layer_max_separation", params.vertical_layer_max_separation, 0.35);
+    private_nh.param("vertical_layer_surface_tolerance", params.vertical_layer_surface_tolerance, 0.04);
     
     // Trajectory format parameter
     private_nh.param("trajectory_format", params.trajectory_format, 1);
@@ -96,6 +100,8 @@ int main(int argc, char** argv) {
     std::cout << "  Restore full resolution: " << (params.restore_full_resolution ? "enabled" : "disabled") << std::endl;
     std::cout << "  Restoration search radius: " << params.restoration_search_radius << " m" << std::endl;
     std::cout << "  Restoration height tolerance: " << params.restoration_height_tolerance << " m" << std::endl;
+    std::cout << "  Collapse close vertical layers: " << (params.collapse_vertical_layers ? "enabled" : "disabled") << std::endl;
+    std::cout << "  Vertical layer max separation: " << params.vertical_layer_max_separation << " m" << std::endl;
     std::cout << "  Trajectory format: " << params.trajectory_format << std::endl;
     std::cout << "  Require seed containment: " << (params.require_seed_containment ? "true" : "false") << std::endl;
     std::cout << "  Debug seed points file: " << params.debug_seed_points_file << std::endl;

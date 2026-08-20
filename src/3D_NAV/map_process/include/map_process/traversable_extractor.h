@@ -44,6 +44,12 @@ struct ExtractionParams {
     bool restore_full_resolution;
     double restoration_search_radius;
     double restoration_height_tolerance;
+
+    // Collapse close slab top/bottom returns without merging real floors.
+    bool collapse_vertical_layers;
+    double vertical_layer_xy_resolution;
+    double vertical_layer_max_separation;
+    double vertical_layer_surface_tolerance;
     
     // Trajectory format
     int trajectory_format;              // Format type: 1, 2, or 3
@@ -76,6 +82,10 @@ struct ExtractionParams {
         restore_full_resolution = true;
         restoration_search_radius = 0.04;
         restoration_height_tolerance = 0.03;
+        collapse_vertical_layers = true;
+        vertical_layer_xy_resolution = 0.08;
+        vertical_layer_max_separation = 0.35;
+        vertical_layer_surface_tolerance = 0.04;
         
         // Trajectory format default
         trajectory_format = 1;              // Format 1 by default
@@ -207,6 +217,9 @@ private:
     /** Restore original map points supported by the accepted traversable surface. */
     pcl::PointCloud<pcl::PointXYZI>::Ptr restoreFullResolution(
         const pcl::PointCloud<pcl::PointXYZI>::Ptr& surface) const;
+
+    pcl::PointCloud<pcl::PointXYZI>::Ptr collapseVerticalLayers(
+        const pcl::PointCloud<pcl::PointXYZI>::Ptr& cloud) const;
     
     /**
      * @brief Merge nearby regions based on distance threshold

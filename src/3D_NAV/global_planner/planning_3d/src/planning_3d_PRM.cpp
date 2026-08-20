@@ -19,6 +19,7 @@
 #include <std_srvs/Trigger.h>
 #include <Eigen/Dense>
 #include <pcl/io/pcd_io.h>
+#include <pcl/common/transforms.h>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/filters/voxel_grid.h>
 #include <glog/logging.h>
@@ -105,6 +106,7 @@ public:
           ros::shutdown();
           return;
         }
+        applyMapLeveling(cloud);
 
         /* ---- 2. 滤波 ---- */
         pcl::VoxelGrid<pcl::PointXYZI> vg;
@@ -113,7 +115,7 @@ public:
         pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_f(new pcl::PointCloud<pcl::PointXYZI>);
         vg.filter(*cloud_f);
         pcl::toROSMsg(*cloud_f,pcd_map_);
-        pcd_map_.header.frame_id="map";
+        pcd_map_.header.frame_id=map_frame_;
         grid_.SetPointCloud(cloud_f);
 
         /* ---- 3. 概率体素 ---- */
@@ -451,6 +453,52 @@ public:
     }
 
 private:
+    void applyMapLeveling(const sad::CloudPtr& cloud) {
+        bool enable_map_leveling = false;
+        nh_.param("enable_map_leveling", enable_map_leveling, false);
+        if (!enable_map_leveling) {
+            return;
+        }
+
+        double normal_x = 0.0;
+        double normal_y = 0.0;
+        double normal_z = 1.0;
+        double pivot_x = 0.0;
+        double pivot_y = 0.0;
+        double pivot_z = 0.0;
+        nh_.param("level_normal_x", normal_x, normal_x);
+        nh_.param("level_normal_y", normal_y, normal_y);
+        nh_.param("level_normal_z", normal_z, normal_z);
+        nh_.param("level_pivot_x", pivot_x, pivot_x);
+        nh_.param("level_pivot_y", pivot_y, pivot_y);
+        nh_.param("level_pivot_z", pivot_z, pivot_z);
+
+        Eigen::Vector3f normal(normal_x, normal_y, normal_z);
+        if (normal.norm() < 1e-6f) {
+            ROS_FATAL("Map leveling requested, but level_normal is zero.");
+            ros::shutdown();
+            return;
+        }
+
+        normal.normalize();
+        const Eigen::Quaternionf rotation = Eigen::Quaternionf::FromTwoVectors(
+            normal, Eigen::Vector3f::UnitZ());
+        const Eigen::Vector3f pivot(pivot_x, pivot_y, pivot_z);
+
+        Eigen::Affine3f transform = Eigen::Affine3f::Identity();
+        transform.linear() = rotation.toRotationMatrix();
+        transform.translation() = pivot - transform.linear() * pivot;
+
+        sad::CloudPtr leveled_cloud(new sad::PointCloudType);
+        pcl::transformPointCloud(*cloud, *leveled_cloud, transform);
+        cloud->swap(*leveled_cloud);
+
+        ROS_INFO("Runtime map leveling enabled: normal=(%.6f, %.6f, %.6f), "
+                 "pivot=(%.3f, %.3f, %.3f), angle=%.2f deg",
+                 normal.x(), normal.y(), normal.z(), pivot.x(), pivot.y(), pivot.z(),
+                 Eigen::AngleAxisf(rotation).angle() * 180.0 / M_PI);
+    }
+
     /* -------------------- tf相关成员 -------------------- */
     tf2_ros::Buffer tf_buffer_;
     tf2_ros::TransformListener tf_listener_;
@@ -741,11 +789,16 @@ public:
                 double edge_cost = edge_len;
 
                 if (use_clearance_penalty_) {
-                    // 新方案：基于边的min_clearance的激进惩罚
-                    // cost = length * (1 + weight * exp(-min_clearance / scale))
-                    // 当 min_clearance 很小时，惩罚指数增长
-                    double penalty_factor = 1.0 + clearance_penalty_weight_ *
-                                           std::exp(-edge.min_clearance / clearance_penalty_scale_);
+                    // A short low-clearance sample and sustained boundary
+                    // following are different risks. Penalize both the minimum
+                    // and average edge clearance so A* consistently prefers the
+                    // middle of a corridor instead of merely avoiding its edge.
+                    const double min_penalty =
+                        std::exp(-edge.min_clearance / clearance_penalty_scale_);
+                    const double avg_penalty =
+                        std::exp(-edge.avg_clearance / clearance_penalty_scale_);
+                    const double clearance_cost = 0.30 * min_penalty + 0.70 * avg_penalty;
+                    double penalty_factor = 1.0 + clearance_penalty_weight_ * clearance_cost;
                     edge_cost = edge_len * penalty_factor;
                 } else if (use_soft_penalty_) {
                     // 旧方案：基于终点的温和惩罚（保留兼容性）
@@ -768,7 +821,7 @@ public:
         for(int at=gId;at!=-1;at=cameFrom[at]) pts.push_back(vertices_[at].pos);
         std::reverse(pts.begin(),pts.end());
         nav_msgs::Path path;
-        path.header.frame_id="map";
+        path.header.frame_id=map_frame_;
         path.header.stamp=ros::Time::now();
 
         // 添加所有路径点
@@ -1244,7 +1297,7 @@ private:
     /* -------------------- RViz 显示 PRM 网络 -------------------- */
     void publishGraph(){
         visualization_msgs::Marker mk;
-        mk.header.frame_id="map";
+        mk.header.frame_id=map_frame_;
         mk.header.stamp=ros::Time::now();
         mk.ns="prm"; mk.id=0; mk.type=mk.LINE_LIST;
         mk.action=mk.ADD;
@@ -1274,7 +1327,7 @@ private:
         }
         sensor_msgs::PointCloud2 out;
         pcl::toROSMsg(cloud, out);
-        out.header.frame_id = "map";
+        out.header.frame_id = map_frame_;
         out.header.stamp = ros::Time::now();
         safe_pub_.publish(out);
     }

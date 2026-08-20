@@ -70,22 +70,7 @@ source devel/setup.bash
 roslaunch fast_lio mapping_mid360_g1.launch
 ```
 
-说明：
-
-- 这个 launch 会启动 `livox_ros_driver2` 和 `fast_lio`。
-- 当前 `mapping_mid360_g1.launch` 里 `pcd_save_en` 默认就是 `true`。
-- 当前 `mapping_mid360_g1.launch` 里 `record_trajectory` 默认也是 `true`，会同步订阅 `/Odometry_loc` 记录轨迹。
-- 建图结束后按 `Ctrl+C` 退出，FAST-LIO 会把累计点云保存到：
-
-```bash
-/home/arts-inpector/ART_3dnav/src/data/point_cloud/scans.pcd
-```
-
-同步记录的轨迹会保存到：
-
-```bash
-/home/arts-inpector/ART_3dnav/src/data/trace_data/mapping_trajectory.txt
-```
+说明：]
 
 轨迹格式是：
 
