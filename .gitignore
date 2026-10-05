@@ -51,9 +51,6 @@ src/data/**
 /.agents/
 /docx/
 
-# Keep the local Docker setup outside this backup repository.
-/docker/
-
 # Large upstream demo media; source code and text documentation remain tracked
 src/3D_NAV/localization/**/doc/**/*.gif
 src/3D_NAV/localization/**/doc/**/*.mp4
@@ -73,3 +70,5 @@ src/3D_NAV/localization/**/doc/**/*.mp4
 .idea/
 .DS_Store
 Thumbs.db
+# Native ROS 2 validation outputs
+/artifacts*/
